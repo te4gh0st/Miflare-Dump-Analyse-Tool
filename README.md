@@ -117,31 +117,12 @@ options:
 To load and analyze a MIFARE Classic 1K dump, run the following command:
 
 ```bash
-python3 mdat.py .\example\1.bin
+python3 mdat.py example/1.bin
 ```
 
 **Example Output:**
 
-```
-Tag type: MIFARE Classic 1K
-Manufacturer: NXP
-
-Sector 0
- Block 0: 4B 97 0A 40 96 08 04 00 62 63 64 65 66 67 68 69
-  UID: 4B 97 0A 40
-  BCC: 96 (Calculated BCC: 96) → OK
-  ATQA: 0004, SAK: 08
- Block 1: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
- Block 2: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
- Block 3: FF FF FF FF FF FF FF 07 80 69 FF FF FF FF FF FF
-  Key A       : FF FF FF FF FF FF
-  Access bits : FF 07 80  UserData: 69
-  Key B       : FF FF FF FF FF FF
-    Access Access Block 0: Read/Write with Key B
-    Access Access Block 1: Read/Write with Key B
-    Access Access Block 2: Read/Write with Key B
-    Access Access Block 3: Trailer
-```
+![Example Screenshot 1](assets/example_1.png)
 
 ### 2. Calculate the BCC for a Custom UID
 
@@ -162,25 +143,13 @@ UID: 00 AA BB → BCC: 11
 To compare two dumps and display only the differences, run the following:
 
 ```bash
-python3 mdat.py --compare .\example\1.bin .\example\2.bin --diff-only
+python3 mdat.py --compare example/1.bin example/2.bin --diff-only
 ```
 
 **Example Output:**
 
-```
-Comparing dumps
-Sector 0 Block 0:
-  A: 4B 97 0A 40 96 08 04 00 62 63 64 65 66 67 68 69
-  B: FF FF FF FF 96 08 04 00 62 63 64 65 66 67 68 69
-Sector 13 Block 3:
-  A: FF FF FF FF FF FF FF 07 80 69 FF FF FF FF FF FF
-  B: FF FF FF FF FF FF FF 07 80 69 AF FF FF FF FF FF
-Sector 14 Block 3:
-  A: FF FF FF FF FF FF FF 07 80 69 FF FF FF FF FF FF
-  B: FF FF FF FF FF FF FF 07 80 69 FB FF FF FF FF FF
+![Example Screenshot 2](assets/example_2.png)
 
-Total differences: 3
-```
 
 ### 4. Decode Access Bits for a Given Value
 
@@ -192,22 +161,8 @@ python3 mdat.py --calc-access 07 80 69
 
 **Example Output:**
 
-```
-Access bits calculation
-Access Matrix:
-  Block 0 :  C1=1  C2=0  C3=1
-  Block 1 :  C1=1  C2=1  C3=1
-  Block 2 :  C1=1  C2=1  C3=1
-  Block 3 :  C1=1  C2=0  C3=0
+![Example Screenshot 3](assets/example_3.png)
 
-Descriptions:
-  Access Block 0: Read with Key B, writing not allowed
-  Access Block 1: No access
-  Access Block 2: No access
-  Access Block 3: Key B readable with Key A, Access Bits writable
-
-Access Bytes:  [Byte 6] = 07  [Byte 7] = 80   [Byte 8] = 69
-```
 
 ---
 
