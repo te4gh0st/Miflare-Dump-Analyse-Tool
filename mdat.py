@@ -25,9 +25,8 @@ Example Usage:
 --
 Copyright (c) 2025 te4gh0st
 """
-import sys
 import argparse
-import textwrap
+import sys
 
 # ANSI escape codes for colors
 RESET = "\033[0m"
@@ -55,20 +54,19 @@ LANG_TEXT = {
         'compare': 'Comparing dumps',
         'diff_only': 'Differences only',
         'trailer_details': {
-            (0,0,0): 'Key A/B readable/writable, Access Bits writable (INSECURE)',
-            (0,1,0): 'Key B readable/writable with Key A, Access Bits writable',
-            (1,0,0): 'Key B readable with Key A, Access Bits writable',
-            (1,1,0): 'Key B readable with Key A, Access Bits writable (Key B required)',
+            (0, 0, 0): 'Key A/B can be read/written, access bits are changeable (INSECURE)',
+            (0, 1, 0): 'Key B can be read/written with Key A, access bits are changeable',
+            (1, 0, 0): 'Key B can be read with Key A, access bits are changeable',
+            (1, 1, 0): 'Key B can be read with Key A, access bits are changeable (requires Key B)',
+            (1, 0, 1): 'Access bits readable with Key A/B, write only with Key B. Keys cannot be read.',
+            (0, 0, 1): 'Transport configuration: access only via Key A, keys are not readable.',
+            (0, 1, 1): 'Read/write via Key B, partially via Key A.',
+            (1, 1, 1): 'Access blocked. Authentication only.',
         },
-        'options': [
-            ((0, 0, 0), 'Key A/B readable/writable, Access Bits writable (INSECURE)'),
-            ((0, 1, 0), 'Key B readable/writable with Key A, Access Bits writable'),
-            ((1, 0, 0), 'Key B readable with Key A, Access Bits writable'),
-            ((1, 1, 0), 'Key B readable with Key A, Access Bits writable (Key B required)')],
         'gen_access': '=== Access Bytes Generator ===\nSelect access bits for each block:',
-        'input_prompt': 'Choose option [1-4] for block {i}: ',
+        'input_prompt': 'Choose option [1-8] for block {i}: ',
         'user_data_prompt': 'UserData byte (hex, e.g. 69) [00]: ',
-        'invalid_choice': 'Invalid choice. Please enter a number from 1 to 4.',
+        'invalid_choice': 'Invalid choice. Please enter a number from 1 to 8.',
         'invalid_hex': 'Invalid hex input. Defaulting to 00.',
         'result': 'Result:',
         'no_description': 'No description available.',
@@ -91,25 +89,23 @@ LANG_TEXT = {
         'no_access': 'Нет доступа',
         'compare': 'Сравнение дампов',
         'diff_only': 'Только различия',
-        'trailer_details': {
-            (0,0,0): 'Key A/B доступны для чтения/записи, Биты доступа изменяемы (НЕБЕЗОПАСНО)',
-            (0,1,0): 'Key B доступен для чтения/записи с Key A, Биты доступа изменяемы',
-            (1,0,0): 'Key B доступен для чтения с Key A, Биты доступа изменяемы',
-            (1,1,0): 'Key B доступен для чтения с Key A, Биты доступа изменяемы (требуется Key B)',
+         'trailer_details': {
+             (0, 0, 0): 'Ключи A/B доступны для чтения/записи, биты доступа изменяемы (НЕБЕЗОПАСНО)',
+             (0, 1, 0): 'Ключ B доступен для чтения/записи с Key A, биты доступа изменяемы',
+             (1, 0, 0): 'Ключ B доступен для чтения с Key A, биты доступа изменяемы',
+             (1, 1, 0): 'Ключ B доступен для чтения с Key A, биты доступа изменяемы (требуется Key B)',
+             (1, 0, 1): 'Для чтения битов доступа нужен Key A/B, запись только с Key B. Ключи недоступны для чтения.',
+             (0, 0, 1): 'Транспортная конфигурация: доступ только через Key A, ключи не читаются.',
+             (0, 1, 1): 'Чтение и запись через Key B, частично через Key A.',
+             (1, 1, 1): 'Доступ заблокирован. Только аутентификация.',
         },
         'gen_access': '=== Генератор байтов доступа ===\nВыберите биты доступа для каждого блока:',
-        'input_prompt': 'Выберите вариант [1-4] для блока {i}: ',
+        'input_prompt': 'Выберите вариант [1-8] для блока {i}: ',
         'user_data_prompt': 'Байт UserData (в hex, напр. 69) [00]: ',
-        'invalid_choice': 'Неверный выбор. Введите число от 1 до 4.',
+        'invalid_choice': 'Неверный выбор. Введите число от 1 до 8.',
         'invalid_hex': 'Неверный формат hex. Используется значение по умолчанию: 00.',
         'result': 'Результат:',
         'no_description': 'Описание недоступно.',
-        'options': [
-            ((0, 0, 0), 'Ключи A/B доступны для чтения/записи, биты доступа изменяемы (НЕБЕЗОПАСНО)'),
-            ((0, 1, 0), 'Ключ B доступен для чтения/записи с ключом A, биты доступа изменяемы'),
-            ((1, 0, 0), 'Ключ B доступен для чтения с ключом A, биты доступа изменяемы'),
-            ((1, 1, 0), 'Ключ B доступен для чтения с ключом A, биты доступа изменяемы (требуется ключ B)'),
-        ],
         'access_bytes': 'Байты доступа',
         'byte': 'Байт',
         'differences': 'Всего отличий'
@@ -155,24 +151,70 @@ def calc_bcc(uid_bytes):
     return b
 
 
-def parse_access(ab6, ab7, ab8):
-    c1 = [((ab7 >> i) & 1) ^ 1 for i in range(4)]
-    c2 = [((ab8 >> i) & 1) ^ 1 for i in range(4)]
-    c3 = [((ab6 >> i) & 1) for i in range(4)]
-    return {i: (c1[i], c2[i], c3[i]) for i in range(4)}
+def parse_access(byte6, byte7, byte8):
+    """
+    Парсит access bits из трёх байт (byte6, byte7, byte8),
+    проверяет корректность по контрольным битам,
+    и возвращает матрицу [блок][C1, C2, C3] и флаг валидности.
+    """
+
+    def get_bit(value, bit):
+        return (value >> bit) & 1
+
+    # C1: из byte7, биты 4–7
+    c1 = [get_bit(byte7, 4 + i) for i in range(4)]
+
+    # C1': из byte6, биты 0–3
+    c1_inv = [get_bit(byte6, i) for i in range(4)]
+
+    # C2: из byte8, биты 0–3
+    c2 = [get_bit(byte8, i) for i in range(4)]
+
+    # C2': из byte6, биты 4–7
+    c2_inv = [get_bit(byte6, 4 + i) for i in range(4)]
+
+    # C3: из byte8, биты 4–7
+    c3 = [get_bit(byte8, 4 + i) for i in range(4)]
+
+    # C3': из byte7, биты 0–3
+    c3_inv = [get_bit(byte7, i) for i in range(4)]
+
+    # Проверка валидности контрольных битов
+    valid = all(
+        (c1[i] ^ c1_inv[i]) == 1 and
+        (c2[i] ^ c2_inv[i]) == 1 and
+        (c3[i] ^ c3_inv[i]) == 1
+        for i in range(4)
+    )
+
+    # Формируем матрицу [блок][C1, C2, C3]
+    matrix = [
+        [c1[0], c2[0], c3[0]],
+        [c1[1], c2[1], c3[1]],
+        [c1[2], c2[2], c3[2]],
+        [c1[3], c2[3], c3[3]],
+    ]
+
+    return matrix, valid
 
 
-def describe_access(bits, lang):
+def describe_access(bits_matrix, valid, lang):
     t = LANG_TEXT[lang]
     desc = {}
-    for i, (c1, c2, c3) in bits.items():
+
+    for i, (c1, c2, c3) in enumerate(bits_matrix):
         if i < 3:
             entry = access_map.get((c1, c2, c3))
             d = t[entry[0]] if entry else f"{t['custom']} ({c1},{c2},{c3})"
         else:
             d = t['trailer_details'].get((c1, c2, c3), t['trailer'])
         desc[i] = d
-    return desc
+
+    return {
+        "valid": valid,
+        "description": desc
+    }
+
 
 
 def hexdump(b): return ' '.join(f"{x:02X}" for x in b)
@@ -213,11 +255,21 @@ def show_sector(sec, idx, args, txt):
             print(f"  Access bits : {ab_str}  UserData: {ud_str}")
             print(f"  Key B       : {kb_str}")
             # decode access
-            bits = parse_access(ab6, ab7, ab8)
-            desc = describe_access(bits, args.lang)
-            for b, d in desc.items():
-                print(f"    {txt['access']} {txt['access_block']} {b}: {d}")
-        # print()
+            bits, valid = parse_access(ab6, ab7, ab8)
+            result = describe_access(bits, valid, args.lang)
+            desc = result["description"]
+            t = LANG_TEXT[args.lang]
+
+            for block in sorted(desc):
+                print(f"   {t['access_block']} {block}: {MAGENTA}{desc[block]}{RESET}")
+
+            # Добавим вывод информации о корректности access bits
+            if valid:
+                print(
+                    f"    {GREEN}{txt['valid_access_bits'] if 'valid_access_bits' in txt else 'Access bits are valid.'}{RESET}")
+            else:
+                print(
+                    f"    {RED}{txt['invalid_access_bits'] if 'invalid_access_bits' in txt else 'Access bits are INVALID!'}{RESET}")
 
 
 def load(path):
@@ -242,7 +294,7 @@ def generate_access_interactive(lang):
 
         while True:
             choice = input(t['input_prompt'].format(i=i, max=len(options)))
-            if choice.isdigit() and 1 <= int(choice) <= len(options):
+            if choice.isdigit() and 1 <= int(choice) <= len(access_map):
                 bits = options[int(choice)-1][0]
                 specs[i] = bits
                 print(f"{MAGENTA}Выбрано: C1={bits[0]}, C2={bits[1]}, C3={bits[2]}{RESET}")
@@ -333,13 +385,14 @@ def main():
 
     if args.calc_access:
         ab6, ab7, ab8 = [int(x, 16) for x in args.calc_access]
-        bits = parse_access(ab6, ab7, ab8)
-        desc = describe_access(bits, args.lang)
+        bits, valid = parse_access(ab6, ab7, ab8)
+        result = describe_access(bits, valid, args.lang)
+        desc = result["description"]
         t = LANG_TEXT[args.lang]
 
         print(f"{CYAN}{t['access_calc']}{RESET}")
         print(f"{YELLOW}{'Access Matrix:':<20}{RESET}")
-        for block, (c1, c2, c3) in bits.items():
+        for block, (c1, c2, c3) in enumerate(bits):
             print(f"  Block {block:<2}:  C1={c1}  C2={c2}  C3={c3}")
 
         print(f"\n{YELLOW}{'Descriptions:' if args.lang == 'en' else 'Пояснения:'}{RESET}")
@@ -347,7 +400,14 @@ def main():
             print(f"  {t['access_block']} {block}: {MAGENTA}{desc[block]}{RESET}")
 
         print(f"\n{GREEN}{t['access_bytes']}:{RESET}  [{t['byte']} 6] = {RED}{ab6:02X}{RESET} "
-              f" [{t['byte']} 7] = {RED}{ab7:02X}{RESET}   [{t['byte']} 8] = {RED}{ab8:02X}{RESET}")
+              f"[{t['byte']} 7] = {RED}{ab7:02X}{RESET}   [{t['byte']} 8] = {RED}{ab8:02X}{RESET}")
+
+        # Вывод флага корректности
+        if valid: # todo: translate
+            print(f"\n{GREEN}Access bits are valid.{RESET}")
+        else:
+            print(f"\n{RED}Access bits are INVALID!{RESET}")
+
         sys.exit(0)
 
     if args.gen_access:
